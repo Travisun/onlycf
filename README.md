@@ -43,7 +43,7 @@ OnlyCF 是一个用于管理服务器防火墙的脚本工具，专门用于确�
 
 1. 下载并安装：
 ```bash
-wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh && chmod +x onlycf.sh && sudo ./onlycf.sh install
+wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh && chmod +x onlycf.sh
 ```
 
 安装完成后，原始的安装包会被自动清理。
