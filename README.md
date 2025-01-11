@@ -1,3 +1,5 @@
+[English](README_EN.md) | [中文](README.md)
+
 # OnlyCF - Cloudflare IP 防火墙管理工具
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
