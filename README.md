@@ -41,14 +41,16 @@ OnlyCF 是一个用于管理服务器防火墙的脚本工具，专门用于确�
 
 ### 快速开始
 
-1. 下载脚本：
+1. 下载并安装：
 ```bash
-wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh
-chmod +x onlycf.sh
+wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh && chmod +x onlycf.sh && sudo ./onlycf.sh install
 ```
+
+安装完成后，原始的安装包会被自动清理。
+
 ### 命令说明
 ```bash
-sudo ./onlycf.sh [命令] [选项]
+sudo onlycf [命令] [选项]
 
 可用命令：
 - `install`: 安装 OnlyCF 到系统
@@ -64,29 +66,19 @@ sudo ./onlycf.sh [命令] [选项]
 
 ### 使用示例
 
-1. 安装并保护 80、443 端口：
+1. 更新 Cloudflare IP 规则：
 ```bash
-sudo ./onlycf.sh install
+sudo onlycf update
 ```
 
-2. 安装并保护自定义端口：
+2. 修改配置：
 ```bash
-sudo ./onlycf.sh install -p 80,443,8080
+sudo onlycf config
 ```
 
-3. 使用 UFW 防火墙：
+3. 查看当前状态：
 ```bash
-sudo ./onlycf.sh install -f ufw
-```
-
-4. 手动更新 IP 规则：
-```bash
-sudo ./onlycf.sh update
-```
-
-5. 修改配置：
-```bash
-sudo ./onlycf.sh config
+sudo onlycf status
 ```
 
 ## 自动更新

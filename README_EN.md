@@ -39,15 +39,16 @@ Author: Travis Tang https://investravis.com
 
 ### Quick Start
 
-1. Download the script:
+1. Download and install:
 ```bash
-wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh
-chmod +x onlycf.sh
+wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh && chmod +x onlycf.sh && sudo ./onlycf.sh install
 ```
+
+After installation, the original installer package will be automatically cleaned up.
 
 ### Command Reference
 ```bash
-sudo ./onlycf.sh [command] [options]
+sudo onlycf [command] [options]
 
 Available commands:
 - `install`: Install OnlyCF to the system
@@ -63,29 +64,19 @@ Options:
 
 ### Usage Examples
 
-1. Install and protect ports 80, 443:
+1. Update Cloudflare IP rules:
 ```bash
-sudo ./onlycf.sh install
+sudo onlycf update
 ```
 
-2. Install with custom ports:
+2. Modify configuration:
 ```bash
-sudo ./onlycf.sh install -p 80,443,8080
+sudo onlycf config
 ```
 
-3. Use UFW firewall:
+3. Check current status:
 ```bash
-sudo ./onlycf.sh install -f ufw
-```
-
-4. Manually update IP rules:
-```bash
-sudo ./onlycf.sh update
-```
-
-5. Modify configuration:
-```bash
-sudo ./onlycf.sh config
+sudo onlycf status
 ```
 
 ## Automatic Updates
