@@ -452,9 +452,6 @@ check_root() {
 install_script() {
     check_root
     
-    # 在安装开始时先选择语言
-    select_language
-    
     # 检查是否已安装
     if [ -d "$INSTALL_DIR" ]; then
         echo "$(t already_installed)"
@@ -462,133 +459,95 @@ install_script() {
         if [[ ! $confirm =~ ^[Yy]$ ]]; then
             exit 1
         fi
-        # 备份旧配置
-        if [ -f "$INSTALL_DIR/config" ]; then
-            cp "$INSTALL_DIR/config" "$INSTALL_DIR/config.bak"
-        fi
     fi
     
-    # 创建安装目录
+    # 创建目录
     mkdir -p "$INSTALL_DIR" "$TEMP_DIR"
     
-    # 复制脚本到安装目录
+    # 复制脚本和创建软链接
     cp "$0" "$SCRIPT_PATH"
     chmod +x "$SCRIPT_PATH"
-    
-    # 创建软链接到 /usr/local/bin
     ln -sf "$SCRIPT_PATH" "/usr/local/bin/onlycf"
     
-    # 创建配置文件，添加语言设置
+    # 使用命令行参数或默认值创建初始配置
     cat > "$INSTALL_DIR/config" <<EOF
-PORTS="80,443"
-FIREWALL="$FIREWALL"
-CURRENT_LANG="$CURRENT_LANG"
+PORTS="${PORTS:-80,443}"
+FIREWALL="${FIREWALL:-iptables}"
+CURRENT_LANG="${CURRENT_LANG:-en}"
 EOF
     
     # 设置定时任务
-    echo "$(t select_update_frequency)"
-    echo "1) $(t daily)"
-    echo "2) $(t weekly)"
-    echo "3) $(t monthly)"
-    echo "4) $(t no_auto_update)"
-    read -p "$(t select_choice) [1-4]: " cron_choice
+    configure_cron
     
-    case $cron_choice in
-        1)
-            echo "0 0 * * * root $SCRIPT_PATH update" > "$CRON_FILE"
-            chmod 644 "$CRON_FILE"
-            ;;
-        2)
-            echo "0 0 * * 0 root $SCRIPT_PATH update" > "$CRON_FILE"
-            chmod 644 "$CRON_FILE"
-            ;;
-        3)
-            echo "0 0 1 * * root $SCRIPT_PATH update" > "$CRON_FILE"
-            chmod 644 "$CRON_FILE"
-            ;;
-        4)
-            echo "$(t auto_update_not_set)"
-            rm -f "$CRON_FILE"
-            ;;
-        *)
-            echo "$(t invalid_choice)"
-            rm -f "$CRON_FILE"
-            ;;
-    esac
+    # 显示安装完成信息
+    show_install_complete
     
-    # 获取当前脚本的路径
-    CURRENT_SCRIPT=$(readlink -f "$0")
-    
-    echo "$(t install_success)"
-    echo "================================================================"
-    echo "$(t install_complete_guide)"
-    echo
-    echo "1. $(t usage_command_prefix) onlycf [command]"
-    echo
-    echo "$(t available_commands):"
-    echo "   update    - $(t cmd_update_desc)"
-    echo "   config    - $(t cmd_config_desc)"
-    echo "   uninstall - $(t cmd_uninstall_desc)"
-    echo
-    echo "$(t example_usage):"
-    echo "   sudo onlycf update    - $(t example_update_desc)"
-    echo "   sudo onlycf config    - $(t example_config_desc)"
-    echo
-    echo "$(t install_location): $INSTALL_DIR"
-    echo "$(t config_file_location): $INSTALL_DIR/config"
-    echo
-    echo "$(t next_step_prompt)"
-    echo "================================================================"
-    
-    # 如果是从下载的安装包运行的，删除安装包
-    if [ "$CURRENT_SCRIPT" != "$SCRIPT_PATH" ]; then
-        rm -f "$CURRENT_SCRIPT"
-        echo "$(t installer_cleaned)"
-    fi
-    
-    echo "$(t start_initial_config)"
-    configure_settings
+    # 立即更新规则
+    update_rules
 }
 
-# 配置设置
+# 简化配置加载
+load_config() {
+    if [ -f "$INSTALL_DIR/config" ]; then
+        source "$INSTALL_DIR/config"
+    else
+        # 默认值
+        PORTS="80,443"
+        FIREWALL="iptables"
+        CURRENT_LANG="en"
+    fi
+}
+
+# 简化配置菜单
 configure_settings() {
     echo "=== OnlyCF $(t config_title) ==="
-    
-    # 添加语言设置选项
-    echo "$(t select_language_setting)"
     echo "1) $(t language_setting)"
     echo "2) $(t firewall_setting)"
     echo "3) $(t ports_setting)"
-    read -p "$(t select_choice) [1-3]: " setting_choice
+    echo "4) $(t update_schedule)"
+    echo "0) $(t exit_menu)"
     
-    case $setting_choice in
-        1)
-            select_language
-            ;;
-        2)
-            configure_firewall
-            ;;
-        3)
-            configure_ports
-            ;;
-        *)
-            echo "$(t invalid_choice)"
-            return 1
-            ;;
+    read -p "$(t select_choice) [0-4]: " choice
+    
+    case $choice in
+        1) select_language ;;
+        2) configure_firewall ;;
+        3) configure_ports ;;
+        4) configure_cron ;;
+        0) return ;;
+        *) echo "$(t invalid_choice)" ;;
     esac
     
-    # 保存所有配置
+    # 保存配置
+    save_config
+    
+    # 询问是否更新规则
+    echo "$(t config_saved)"
+    read -p "$(t confirm_update)" confirm
+    [[ $confirm =~ ^[Yy]$ ]] && update_rules
+}
+
+# 新增：保存配置函数
+save_config() {
     cat > "$INSTALL_DIR/config" <<EOF
 PORTS="$PORTS"
 FIREWALL="$FIREWALL"
 CURRENT_LANG="$CURRENT_LANG"
 EOF
-    
-    echo "$(t config_saved)"
-    read -p "$(t confirm_continue)" confirm
-    if [[ $confirm =~ ^[Yy]$ ]]; then
-        update_rules
-    fi
+}
+
+# 新增：显示安装完成信息
+show_install_complete() {
+    echo "================================================================"
+    echo "$(t install_complete_guide)"
+    echo
+    echo "$(t usage_command_prefix):"
+    echo "  sudo onlycf update     - $(t cmd_update_desc)"
+    echo "  sudo onlycf config     - $(t cmd_config_desc)"
+    echo "  sudo onlycf uninstall  - $(t cmd_uninstall_desc)"
+    echo
+    echo "$(t install_location): $INSTALL_DIR"
+    echo "================================================================"
 }
 
 # 卸载脚本
@@ -738,18 +697,6 @@ update_rules() {
     echo "$(t config_complete)"
 }
 
-# 修改加载配置的函数
-load_config() {
-    if [ -f "$INSTALL_DIR/config" ]; then
-        source "$INSTALL_DIR/config"
-    else
-        # 如果配置文件不存在，使用默认值
-        PORTS="80,443"
-        FIREWALL="iptables"
-        CURRENT_LANG="en"
-    fi
-}
-
 # 配置防火墙
 configure_firewall() {
     echo "$(t select_firewall)"
@@ -816,24 +763,14 @@ parse_args() {
 
 # 修改主程序
 main() {
-    # 解析命令行参数
+    # 1. 首先加载配置（如果存在）
+    load_config
+    
+    # 2. 解析命令行参数（优先级高于配置文件）
     parse_args "$@"
     
-    # 加载配置（包括语言设置）
-    if [ "$1" != "install" ]; then
-        load_config
-    fi
-    
-    # 获取主命令（install/update/config/uninstall）
-    local command=""
-    for arg in "$@"; do
-        case "$arg" in
-            install|update|config|uninstall)
-                command="$arg"
-                break
-                ;;
-        esac
-    done
+    # 3. 获取主命令
+    local command="$1"
     
     case "$command" in
         "install")
