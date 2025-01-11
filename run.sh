@@ -140,6 +140,45 @@ t() {
                 "invalid_ip_lists")
                     echo "无效的 IP 列表"
                     ;;
+                "install_complete_guide")
+                    echo "安装完成！以下是使用指南："
+                    ;;
+                "usage_command_prefix")
+                    echo "使用命令格式："
+                    ;;
+                "available_commands")
+                    echo "可用命令"
+                    ;;
+                "cmd_update_desc")
+                    echo "更新 Cloudflare IP 列表并应用防火墙规则"
+                    ;;
+                "cmd_config_desc")
+                    echo "修改配置设置"
+                    ;;
+                "cmd_uninstall_desc")
+                    echo "卸载 OnlyCF"
+                    ;;
+                "example_usage")
+                    echo "使用示例"
+                    ;;
+                "example_update_desc")
+                    echo "更新 Cloudflare IPs 并应用规则"
+                    ;;
+                "example_config_desc")
+                    echo "修改配置设置"
+                    ;;
+                "install_location")
+                    echo "安装位置"
+                    ;;
+                "config_file_location")
+                    echo "配置文件位置"
+                    ;;
+                "next_step_prompt")
+                    echo "现在开始进行初始配置..."
+                    ;;
+                "installer_cleaned")
+                    echo "安装包已清理"
+                    ;;
                 *)
                     echo "[$key]"  # 如果没有找到翻译，返回键名
                     ;;
@@ -242,6 +281,45 @@ t() {
                 "invalid_ip_lists")
                     echo "Invalid IP lists"
                     ;;
+                "install_complete_guide")
+                    echo "Installation completed! Here's your usage guide:"
+                    ;;
+                "usage_command_prefix")
+                    echo "Command format:"
+                    ;;
+                "available_commands")
+                    echo "Available commands"
+                    ;;
+                "cmd_update_desc")
+                    echo "Update Cloudflare IP lists and apply firewall rules"
+                    ;;
+                "cmd_config_desc")
+                    echo "Modify configuration settings"
+                    ;;
+                "cmd_uninstall_desc")
+                    echo "Uninstall OnlyCF"
+                    ;;
+                "example_usage")
+                    echo "Usage examples"
+                    ;;
+                "example_update_desc")
+                    echo "Update Cloudflare IPs and apply rules"
+                    ;;
+                "example_config_desc")
+                    echo "Modify configuration settings"
+                    ;;
+                "install_location")
+                    echo "Installation location"
+                    ;;
+                "config_file_location")
+                    echo "Configuration file location"
+                    ;;
+                "next_step_prompt")
+                    echo "Starting initial configuration..."
+                    ;;
+                "installer_cleaned")
+                    echo "Installer package has been cleaned up"
+                    ;;
                 *)
                     echo "[$key]"
                     ;;
@@ -328,6 +406,9 @@ install_script() {
     cp "$0" "$SCRIPT_PATH"
     chmod +x "$SCRIPT_PATH"
     
+    # 创建软链接到 /usr/local/bin
+    ln -sf "$SCRIPT_PATH" "/usr/local/bin/onlycf"
+    
     # 创建配置文件
     cat > "$INSTALL_DIR/config" <<EOF
 PORTS="80,443"
@@ -365,7 +446,36 @@ EOF
             ;;
     esac
     
+    # 获取当前脚本的路径
+    CURRENT_SCRIPT=$(readlink -f "$0")
+    
     echo "$(t install_success)"
+    echo "================================================================"
+    echo "$(t install_complete_guide)"
+    echo
+    echo "1. $(t usage_command_prefix) onlycf [command]"
+    echo
+    echo "$(t available_commands):"
+    echo "   update    - $(t cmd_update_desc)"
+    echo "   config    - $(t cmd_config_desc)"
+    echo "   uninstall - $(t cmd_uninstall_desc)"
+    echo
+    echo "$(t example_usage):"
+    echo "   sudo onlycf update    - $(t example_update_desc)"
+    echo "   sudo onlycf config    - $(t example_config_desc)"
+    echo
+    echo "$(t install_location): $INSTALL_DIR"
+    echo "$(t config_file_location): $INSTALL_DIR/config"
+    echo
+    echo "$(t next_step_prompt)"
+    echo "================================================================"
+    
+    # 如果是从下载的安装包运行的，删除安装包
+    if [ "$CURRENT_SCRIPT" != "$SCRIPT_PATH" ]; then
+        rm -f "$CURRENT_SCRIPT"
+        echo "$(t installer_cleaned)"
+    fi
+    
     echo "$(t start_initial_config)"
     configure_settings
 }
@@ -426,6 +536,9 @@ uninstall_script() {
     echo "$(t uninstall_warning)"
     read -p "$(t confirm_continue)" confirm
     if [[ $confirm =~ ^[Yy]$ ]]; then
+        # 删除软链接
+        rm -f "/usr/local/bin/onlycf"
+        
         # 备份配置
         if [ -d "$INSTALL_DIR" ]; then
             backup_dir="/tmp/onlycf_backup_$(date +%Y%m%d_%H%M%S)"
