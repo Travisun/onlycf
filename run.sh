@@ -179,6 +179,18 @@ t() {
                 "installer_cleaned")
                     echo "安装包已清理"
                     ;;
+                "select_language_setting")
+                    echo "请选择要修改的设置："
+                    ;;
+                "language_setting")
+                    echo "语言设置"
+                    ;;
+                "firewall_setting")
+                    echo "防火墙设置"
+                    ;;
+                "ports_setting")
+                    echo "端口设置"
+                    ;;
                 *)
                     echo "[$key]"  # 如果没有找到翻译，返回键名
                     ;;
@@ -320,6 +332,18 @@ t() {
                 "installer_cleaned")
                     echo "Installer package has been cleaned up"
                     ;;
+                "select_language_setting")
+                    echo "Please select setting to modify:"
+                    ;;
+                "language_setting")
+                    echo "Language Settings"
+                    ;;
+                "firewall_setting")
+                    echo "Firewall Settings"
+                    ;;
+                "ports_setting")
+                    echo "Ports Settings"
+                    ;;
                 *)
                     echo "[$key]"
                     ;;
@@ -386,6 +410,9 @@ check_root() {
 install_script() {
     check_root
     
+    # 在安装开始时先选择语言
+    select_language
+    
     # 检查是否已安装
     if [ -d "$INSTALL_DIR" ]; then
         echo "$(t already_installed)"
@@ -409,10 +436,11 @@ install_script() {
     # 创建软链接到 /usr/local/bin
     ln -sf "$SCRIPT_PATH" "/usr/local/bin/onlycf"
     
-    # 创建配置文件
+    # 创建配置文件，添加语言设置
     cat > "$INSTALL_DIR/config" <<EOF
 PORTS="80,443"
 FIREWALL="$FIREWALL"
+CURRENT_LANG="$CURRENT_LANG"
 EOF
     
     # 设置定时任务
@@ -483,43 +511,35 @@ EOF
 # 配置设置
 configure_settings() {
     echo "=== OnlyCF $(t config_title) ==="
-    echo "$(t select_firewall)"
-    echo "1) iptables"
-    echo "2) ufw"
-    read -p "$(t select_choice) [1-2]: " fw_choice
     
-    case $fw_choice in
+    # 添加语言设置选项
+    echo "$(t select_language_setting)"
+    echo "1) $(t language_setting)"
+    echo "2) $(t firewall_setting)"
+    echo "3) $(t ports_setting)"
+    read -p "$(t select_choice) [1-3]: " setting_choice
+    
+    case $setting_choice in
         1)
-            FIREWALL="iptables"
+            select_language
             ;;
         2)
-            FIREWALL="ufw"
+            configure_firewall
+            ;;
+        3)
+            configure_ports
             ;;
         *)
-            echo "$(t invalid_choice_default)"
-            FIREWALL="iptables"
+            echo "$(t invalid_choice)"
+            return 1
             ;;
     esac
     
-    read -p "$(t enter_ports)" input_ports
-    if [ ! -z "$input_ports" ]; then
-        # 验证端口格式
-        if [[ ! $input_ports =~ ^[0-9,]+$ ]]; then
-            echo "$(t invalid_ports)"
-            return 1
-        fi
-        PORTS="$input_ports"
-    fi
-    
-    # 备份旧配置
-    if [ -f "$INSTALL_DIR/config" ]; then
-        cp "$INSTALL_DIR/config" "$INSTALL_DIR/config.bak"
-    fi
-    
-    # 保存配置
+    # 保存所有配置
     cat > "$INSTALL_DIR/config" <<EOF
 PORTS="$PORTS"
 FIREWALL="$FIREWALL"
+CURRENT_LANG="$CURRENT_LANG"
 EOF
     
     echo "$(t config_saved)"
@@ -676,10 +696,24 @@ update_rules() {
     echo "$(t config_complete)"
 }
 
+# 修改加载配置的函数
+load_config() {
+    if [ -f "$INSTALL_DIR/config" ]; then
+        source "$INSTALL_DIR/config"
+    else
+        # 如果配置文件不存在，使用默认值
+        PORTS="80,443"
+        FIREWALL="iptables"
+        CURRENT_LANG="en"
+    fi
+}
+
 # 主程序
 main() {
-    # 首先加载或选择语言
-    load_language
+    # 加载配置（包括语言设置）
+    if [ "$1" != "install" ]; then
+        load_config
+    fi
     
     case "$1" in
         "install")
