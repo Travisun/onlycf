@@ -212,6 +212,18 @@ t() {
                 "opt_help_desc")
                     echo "显示此帮助信息"
                     ;;
+                "invalid_language")
+                    echo "无效的语言设置"
+                    ;;
+                "confirm_update")
+                    echo "是否立即更新规则？[y/N]: "
+                    ;;
+                "exit_menu")
+                    echo "退出"
+                    ;;
+                "update_schedule")
+                    echo "更新计划"
+                    ;;
                 *)
                     echo "[$key]"  # 如果没有找到翻译，返回键名
                     ;;
@@ -386,6 +398,18 @@ t() {
                 "opt_help_desc")
                     echo "Show this help message"
                     ;;
+                "invalid_language")
+                    echo "Invalid language setting"
+                    ;;
+                "confirm_update")
+                    echo "Update rules now? [y/N]: "
+                    ;;
+                "exit_menu")
+                    echo "Exit"
+                    ;;
+                "update_schedule")
+                    echo "Update Schedule"
+                    ;;
                 *)
                     echo "[$key]"
                     ;;
@@ -527,8 +551,43 @@ configure_settings() {
     [[ $confirm =~ ^[Yy]$ ]] && update_rules
 }
 
-# 新增：保存配置函数
+# 验证配置
+validate_config() {
+    # 验证端口格式
+    if ! echo "$PORTS" | grep -qE '^[0-9]+(,[0-9]+)*$'; then
+        echo "$(t invalid_ports)"
+        return 1
+    fi
+    
+    # 验证防火墙类型
+    case "$FIREWALL" in
+        "iptables"|"ufw")
+            ;;
+        *)
+            echo "$(t unsupported_firewall) $FIREWALL"
+            return 1
+            ;;
+    esac
+    
+    # 验证语言设置
+    case "$CURRENT_LANG" in
+        "en"|"zh")
+            ;;
+        *)
+            echo "$(t invalid_language)"
+            return 1
+            ;;
+    esac
+    
+    return 0
+}
+
+# 在保存配置前调用验证
 save_config() {
+    if ! validate_config; then
+        return 1
+    fi
+    
     cat > "$INSTALL_DIR/config" <<EOF
 PORTS="$PORTS"
 FIREWALL="$FIREWALL"
@@ -582,9 +641,12 @@ uninstall_script() {
                 ;;
         esac
         
-        # 删除文件
-        rm -rf "$INSTALL_DIR"
+        # 删除定时任务
         rm -f "$CRON_FILE"
+        
+        # 删除安装目录
+        rm -rf "$INSTALL_DIR"
+        
         echo "$(t uninstall_success)"
     fi
 }
@@ -594,8 +656,10 @@ mkdir -p "$TEMP_DIR"
 
 # 下载Cloudflare IP列表
 download_ip_lists() {
-    curl -s "$IPV4_URL" > "$TEMP_DIR/ipv4.txt"
-    curl -s "$IPV6_URL" > "$TEMP_DIR/ipv6.txt"
+    local ret=0
+    curl -s "$IPV4_URL" > "$TEMP_DIR/ipv4.txt" || ret=$?
+    curl -s "$IPV6_URL" > "$TEMP_DIR/ipv6.txt" || ret=$?
+    return $ret
 }
 
 # 使用iptables配置防火墙规则
@@ -659,12 +723,10 @@ update_rules() {
     check_root
     
     # 加载配置
-    if [ -f "$INSTALL_DIR/config" ]; then
-        source "$INSTALL_DIR/config"
-    else
-        echo "$(t config_not_found)"
-        exit 1
-    fi
+    load_config
+    
+    # 创建临时目录
+    mkdir -p "$TEMP_DIR"
     
     # 下载IP列表
     echo "$(t downloading)"
@@ -793,3 +855,36 @@ main() {
 
 # 运行主程序
 main "$@"
+
+# 配置定时任务
+configure_cron() {
+    echo "$(t select_update_frequency)"
+    echo "1) $(t daily)"
+    echo "2) $(t weekly)"
+    echo "3) $(t monthly)"
+    echo "4) $(t no_auto_update)"
+    read -p "$(t select_choice) [1-4]: " cron_choice
+    
+    case $cron_choice in
+        1)
+            echo "0 0 * * * root $SCRIPT_PATH update" > "$CRON_FILE"
+            chmod 644 "$CRON_FILE"
+            ;;
+        2)
+            echo "0 0 * * 0 root $SCRIPT_PATH update" > "$CRON_FILE"
+            chmod 644 "$CRON_FILE"
+            ;;
+        3)
+            echo "0 0 1 * * root $SCRIPT_PATH update" > "$CRON_FILE"
+            chmod 644 "$CRON_FILE"
+            ;;
+        4)
+            echo "$(t auto_update_not_set)"
+            rm -f "$CRON_FILE"
+            ;;
+        *)
+            echo "$(t invalid_choice)"
+            rm -f "$CRON_FILE"
+            ;;
+    esac
+}
