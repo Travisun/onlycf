@@ -191,6 +191,27 @@ t() {
                 "ports_setting")
                     echo "端口设置"
                     ;;
+                "usage_help")
+                    echo "用法: onlycf [命令] [选项]"
+                    ;;
+                "commands_title")
+                    echo "命令"
+                    ;;
+                "options_title")
+                    echo "选项"
+                    ;;
+                "cmd_install_desc")
+                    echo "安装 OnlyCF 到系统"
+                    ;;
+                "opt_ports_desc")
+                    echo "指定要保护的端口，用逗号分隔（默认：80,443）"
+                    ;;
+                "opt_firewall_desc")
+                    echo "指定防火墙类型（iptables 或 ufw，默认：iptables）"
+                    ;;
+                "opt_help_desc")
+                    echo "显示此帮助信息"
+                    ;;
                 *)
                     echo "[$key]"  # 如果没有找到翻译，返回键名
                     ;;
@@ -344,6 +365,27 @@ t() {
                 "ports_setting")
                     echo "Ports Settings"
                     ;;
+                "usage_help")
+                    echo "Usage: onlycf [command] [options]"
+                    ;;
+                "commands_title")
+                    echo "Commands"
+                    ;;
+                "options_title")
+                    echo "Options"
+                    ;;
+                "cmd_install_desc")
+                    echo "Install OnlyCF to system"
+                    ;;
+                "opt_ports_desc")
+                    echo "Specify ports to protect, comma-separated (default: 80,443)"
+                    ;;
+                "opt_firewall_desc")
+                    echo "Specify firewall type (iptables or ufw, default: iptables)"
+                    ;;
+                "opt_help_desc")
+                    echo "Show this help message"
+                    ;;
                 *)
                     echo "[$key]"
                     ;;
@@ -384,17 +426,17 @@ load_language() {
 
 # 帮助信息
 show_help() {
-    echo "用法: $0 [命令] [选项]"
-    echo "命令:"
-    echo "  install    安装OnlyCF到系统"
-    echo "  update    更新Cloudflare IP并应用规则"
-    echo "  config    配置OnlyCF设置"
-    echo "  uninstall 卸载OnlyCF"
+    echo "$(t usage_help)"
+    echo "$(t commands_title):"
+    echo "  install    $(t cmd_install_desc)"
+    echo "  update     $(t cmd_update_desc)"
+    echo "  config     $(t cmd_config_desc)"
+    echo "  uninstall  $(t cmd_uninstall_desc)"
     echo
-    echo "选项:"
-    echo "  -p, --ports     指定要保护的端口，用逗号分隔 (默认: 80,443)"
-    echo "  -f, --firewall  指定防火墙类型 (iptables 或 ufw, 默认: iptables)"
-    echo "  -h, --help      显示此帮助信息"
+    echo "$(t options_title):"
+    echo "  -p, --ports     $(t opt_ports_desc)"
+    echo "  -f, --firewall  $(t opt_firewall_desc)"
+    echo "  -h, --help      $(t opt_help_desc)"
     exit 0
 }
 
@@ -708,14 +750,92 @@ load_config() {
     fi
 }
 
-# 主程序
+# 配置防火墙
+configure_firewall() {
+    echo "$(t select_firewall)"
+    echo "1) iptables"
+    echo "2) ufw"
+    read -p "$(t select_choice) [1-2]: " fw_choice
+    
+    case $fw_choice in
+        1)
+            FIREWALL="iptables"
+            ;;
+        2)
+            FIREWALL="ufw"
+            ;;
+        *)
+            echo "$(t invalid_choice_default)"
+            FIREWALL="iptables"
+            ;;
+    esac
+}
+
+# 配置端口
+configure_ports() {
+    local new_ports
+    echo "$(t enter_ports)"
+    read -p "> " new_ports
+    
+    # 如果用户直接回车，使用默认值
+    if [ -z "$new_ports" ]; then
+        new_ports="80,443"
+    fi
+    
+    # 验证端口格式
+    if echo "$new_ports" | grep -qE '^[0-9]+(,[0-9]+)*$'; then
+        PORTS="$new_ports"
+    else
+        echo "$(t invalid_ports)"
+        return 1
+    fi
+}
+
+# 解析命令行参数
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -p|--ports)
+                PORTS="$2"
+                shift 2
+                ;;
+            -f|--firewall)
+                FIREWALL="$2"
+                shift 2
+                ;;
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+}
+
+# 修改主程序
 main() {
+    # 解析命令行参数
+    parse_args "$@"
+    
     # 加载配置（包括语言设置）
     if [ "$1" != "install" ]; then
         load_config
     fi
     
-    case "$1" in
+    # 获取主命令（install/update/config/uninstall）
+    local command=""
+    for arg in "$@"; do
+        case "$arg" in
+            install|update|config|uninstall)
+                command="$arg"
+                break
+                ;;
+        esac
+    done
+    
+    case "$command" in
         "install")
             install_script
             ;;

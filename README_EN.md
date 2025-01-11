@@ -41,7 +41,7 @@ Author: Travis Tang https://investravis.com
 
 1. Download and install:
 ```bash
-wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh && chmod +x onlycf.sh
+wget https://raw.githubusercontent.com/Travisun/onlycf/main/run.sh -O onlycf.sh && chmod +x onlycf.sh && ./onlycf.sh install
 ```
 
 After installation, the original installer package will be automatically cleaned up.
